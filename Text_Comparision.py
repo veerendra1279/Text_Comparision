@@ -1,31 +1,24 @@
 import difflib
 import tkinter as tk
-from tkinter import filedialog
+from tkinter import ttk, filedialog
 
 def read_file(file_path):
     with open(file_path, 'r') as file:
         return file.readlines()
 
-def compare_files(file1_path, file2_path):
+def compare_files(file1_path, file2_path, mode):
     file1_lines = read_file(file1_path)
     file2_lines = read_file(file2_path)
 
-    d = difflib.Differ()
-    diff = list(d.compare(file1_lines, file2_lines))
+    if mode == "Unified":
+        diff = list(difflib.unified_diff(file1_lines, file2_lines, lineterm=''))
+    elif mode == "Context":
+        diff = list(difflib.context_diff(file1_lines, file2_lines, lineterm=''))
+    else:
+        d = difflib.Differ()
+        diff = list(d.compare(file1_lines, file2_lines))
 
     return diff
-
-def print_differences(diff):
-    result = []
-    for line in diff:
-        if line.startswith('+'):
-            result.append(("added", line))
-        elif line.startswith('-'):
-            result.append(("removed", line))
-        else:
-            result.append(("same", line))
-
-    return result
 
 def browse_file(entry, status_bar):
     file_path = filedialog.askopenfilename()
@@ -40,21 +33,21 @@ def save_comparison_result(output_text, status_bar):
             file.write(output_text.get(1.0, tk.END))
         status_bar.config(text=f"Comparison result saved to: {file_path}")
 
-def compare_button_click(file1_entry, file2_entry, output_text, status_bar):
+def compare_button_click(file1_entry, file2_entry, output_text, status_bar, mode_var):
     file1_path = file1_entry.get()
     file2_path = file2_entry.get()
+    mode = mode_var.get()
 
-    differences = compare_files(file1_path, file2_path)
-    formatted_diff = print_differences(differences)
+    differences = compare_files(file1_path, file2_path, mode)
 
     output_text.delete(1.0, tk.END)
-    for status, line in formatted_diff:
-        if status == "added":
-            output_text.insert(tk.END, line, "added")
-        elif status == "removed":
-            output_text.insert(tk.END, line, "removed")
+    for line in differences:
+        if line.startswith('+'):
+            output_text.insert(tk.END, line + '\n', "added")
+        elif line.startswith('-'):
+            output_text.insert(tk.END, line + '\n', "removed")
         else:
-            output_text.insert(tk.END, line)
+            output_text.insert(tk.END, line + '\n')
 
     status_bar.config(text="Comparison complete")
 
@@ -80,19 +73,28 @@ def main():
     file2_button = tk.Button(root, text="Browse", command=lambda: browse_file(file2_entry, status_bar))
     file2_button.grid(row=1, column=2)
 
-    compare_button = tk.Button(root, text="Compare", command=lambda: compare_button_click(file1_entry, file2_entry, output_text, status_bar))
-    compare_button.grid(row=2, column=1, pady=10)
+    mode_label = tk.Label(root, text="Comparison mode:")
+    mode_label.grid(row=2, column=0)
+
+    mode_var = tk.StringVar()
+    mode_var.set("Unified")
+
+    mode_combobox = ttk.Combobox(root, textvariable=mode_var, values=["Unified", "Context"], state="readonly", width=47)
+    mode_combobox.grid(row=2, column=1)
+    compare_button = tk.Button(root, text="Compare", command=lambda: compare_button_click(file1_entry, file2_entry, output_text, status_bar, mode_var))
+    compare_button.grid(row=3, column=1, pady=10)
 
     output_text = tk.Text(root, wrap=tk.WORD, bg="white", fg="black", width=80, height=20)
-    output_text.grid(row=3, column=0, columnspan=3)
+    output_text.grid(row=4, column=0, columnspan=3)
 
     output_text.tag_configure("added", foreground="green")
     output_text.tag_configure("removed", foreground="red")
+
     save_button = tk.Button(root, text="Save", command=lambda: save_comparison_result(output_text, status_bar))
-    save_button.grid(row=4, column=1, pady=10)
+    save_button.grid(row=5, column=1, pady=10)
 
     status_bar = tk.Label(root, text="", bd=1, relief=tk.SUNKEN, anchor=tk.W)
-    status_bar.grid(row=5, column=0, columnspan=3, sticky=tk.W+tk.E)
+    status_bar.grid(row=6, column=0, columnspan=3, sticky=tk.W+tk.E)
 
     root.mainloop()
 
