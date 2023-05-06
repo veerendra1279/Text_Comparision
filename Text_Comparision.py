@@ -1,4 +1,5 @@
 import difflib
+import os
 import tkinter as tk
 from tkinter import ttk, filedialog
 
@@ -11,12 +12,12 @@ def compare_files(file1_path, file2_path, mode):
     file2_lines = read_file(file2_path)
 
     if mode == "Unified":
-        diff = list(difflib.unified_diff(file1_lines, file2_lines, lineterm=''))
+        diff = list(difflib.unified_diff(file1_lines, file2_lines, lineterm=''))[2:]
     elif mode == "Context":
-        diff = list(difflib.context_diff(file1_lines, file2_lines, lineterm=''))
+        diff = list(difflib.context_diff(file1_lines, file2_lines, lineterm=''))[2:]
     else:
         d = difflib.Differ()
-        diff = list(d.compare(file1_lines, file2_lines))
+        diff = list(d.compare(file1_lines, file2_lines))[2:]
 
     return diff
 
@@ -39,17 +40,53 @@ def compare_button_click(file1_entry, file2_entry, output_text, status_bar, mode
     mode = mode_var.get()
 
     differences = compare_files(file1_path, file2_path, mode)
-
+    #print(differences)
+    #print(mode
     output_text.delete(1.0, tk.END)
-    for line in differences:
-        if line.startswith('+'):
-            output_text.insert(tk.END, line + '\n', "added")
-        elif line.startswith('-'):
-            output_text.insert(tk.END, line + '\n', "removed")
-        else:
-            output_text.insert(tk.END, line + '\n')
+    if mode == "Unified":
+        added_lines = []
+        removed_lines = []
+        modified_lines = []
+        i=0
+        for line in differences:
+            if line.startswith('+'):
+                added_lines.append(line[1:])
+            elif line.startswith('-'):
+                removed_lines.append(line[1:])
+            elif line.startswith(' '):
+                modified_lines.append(line[1:])
+
+        if not added_lines and not removed_lines and not modified_lines:
+            output_text.insert(tk.END, "The files are identical.\n")
+            status_bar.config(text="Comparison complete")
+            return
+        
+        output_text.insert(tk.END, "Below are the lines that are there in File 1 but not in File 2:\n")
+        for line in removed_lines:
+            output_text.insert(tk.END, line, "removed")
+        output_text.insert(tk.END, "\n\n")
+
+        output_text.insert(tk.END, "Below are the lines that are there in File 2 but not in File 1:\n")
+        for line in added_lines:
+            output_text.insert(tk.END, line, "added")
+        output_text.insert(tk.END, "\n\n")
+
+
+        output_text.insert(tk.END, "Below are the lines that are common in File 1 and File 2:\n")
+        for line in modified_lines:
+            output_text.insert(tk.END, line, "modified")
+        output_text.insert(tk.END, "\n")
+    else:
+        for line in differences:
+            if line.startswith('+'):
+                output_text.insert(tk.END, line + '\n', "added")
+            elif line.startswith('-'):
+                output_text.insert(tk.END, line + '\n', "removed")
+            else:
+                output_text.insert(tk.END, line + '\n')
 
     status_bar.config(text="Comparison complete")
+
 
 def main():
     root = tk.Tk()
